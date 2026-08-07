@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4極ステレオプラグ 芯線判別ツール</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f4f6f8;
+      color: #333;
+    }
+    .container {
+      background: #ffffff;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    button {
+      font-size: 1rem;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.2s, opacity 0.2s;
+    }
+    .btn-channel {
+      background-color: #007aff;
+      color: white;
+    }
+    .btn-channel:hover:not(:disabled) {
+      background-color: #0056b3;
+    }
+    .btn-stop {
+      background-color: #ff3b30;
+      color: white;
+      margin-top: 10px;
+    }
+    .btn-stop:hover:not(:disabled) {
+      background-color: #c12a22;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    .status {
+      margin-top: 1.5rem;
+      font-size: 0.9rem;
+      color: #666;
+      padding: 8px;
+      border-radius: 4px;
+      background: #eef2f5;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>4極プラグ 芯線判別ツール</h1>
+  
+  <div class="btn-group">
+    <button id="btnLeft" class="btn-channel">Left Channel (+)</button>
+    <button id="btnRight" class="btn-channel">Right Channel (+)</button>
+    <button id="btnMic" class="btn-channel">Mic (+)</button>
+    <button id="btnStop" class="btn-stop">停止 (0V)</button>
+  </div>
+
+  <div id="status" class="status">待機中</div>
+</div>
+
+<script>
+  let audioCtx = null;
+  let currentOsc = null;
+  let micStream = null;
+
+  const btnLeft = document.getElementById('btnLeft');
+  const btnRight = document.getElementById('btnRight');
+  const btnMic = document.getElementById('btnMic');
+  const btnStop = document.getElementById('btnStop');
+  const statusDiv = document.getElementById('status');
+
+  function initAudioContext() {
+    if (!audioCtx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContext();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function stopAllSignals() {
+    // オシレーター停止
+    if (currentOsc) {
+      try {
+        currentOsc.stop();
+        currentOsc.disconnect();
+      } catch (e) {}
+      currentOsc = null;
+    }
+
+    // マイクストリーム（バイアス供給）停止
+    if (micStream) {
+      micStream.getTracks().forEach(track => track.stop());
+      micStream = null;
+    }
+
+    // UIリセット
+    btnLeft.disabled = false;
+    btnRight.disabled = false;
+    btnMic.disabled = false;
+    statusDiv.textContent = '停止中（電圧: 0V）';
+  }
+
+  function playTone(panValue) {
+    initAudioContext();
+    stopAllSignals();
+
+    // 1kHzの正弦波生成（測定しやすい可聴域信号）
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    const stereoPanner = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1000, audioCtx.currentTime); 
+
+    // 最大振幅に設定
+    gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+
+    if (stereoPanner) {
+      stereoPanner.pan.setValueAtTime(panValue, audioCtx.currentTime); // -1: Left, 1: Right
+      osc.connect(gainNode);
+      gainNode.connect(stereoPanner);
+      stereoPanner.connect(audioCtx.destination);
+    } else {
+      // 古いブラウザ用のパンニング互換処理
+      const merger = audioCtx.createChannelMerger(2);
+      osc.connect(gainNode);
+      if (panValue === -1) {
+        gainNode.connect(merger, 0, 0); // Lのみ
+      } else {
+        gainNode.connect(merger, 0, 1); // Rのみ
+      }
+      merger.connect(audioCtx.destination);
+    }
+
+    osc.start();
+    currentOsc = osc;
+
+    // ボタンの状態変更
+    btnLeft.disabled = true;
+    btnRight.disabled = true;
+    btnMic.disabled = true;
+  }
+
+  // LeftChannel(+) ボタン
+  btnLeft.addEventListener('click', () => {
+    playTone(-1.0);
+    btnLeft.disabled = false; // 押されたボタンのみ有効表示の維持仕様に合わせる場合は調整可
+    statusDiv.textContent = 'Left(+) 出力中 (AC電圧モードで測定)';
+    setDisableStates(btnLeft);
+  });
+
+  // RightChannel(+) ボタン
+  btnRight.addEventListener('click', () => {
+    playTone(1.0);
+    statusDiv.textContent = 'Right(+) 出力中 (AC電圧モードで測定)';
+    setDisableStates(btnRight);
+  });
+
+  // Mic(+) ボタン
+  btnMic.addEventListener('click', async () => {
+    initAudioContext();
+    stopAllSignals();
+
+    try {
+      // マイク入力を要求することでDACのマイク端子にプラグインパワー（DCバイアス）を出力させる
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      statusDiv.textContent = 'Mic(+) バイアス出力中 (DC電圧モードで測定)';
+      setDisableStates(btnMic);
+    } catch (err) {
+      alert('マイクアクセスの許可が必要です: ' + err.message);
+      stopAllSignals();
+    }
+  });
+
+  // 停止ボタン
+  btnStop.addEventListener('click', () => {
+    stopAllSignals();
+  });
+
+  function setDisableStates(activeBtn) {
+    btnLeft.disabled = (activeBtn !== btnLeft);
+    btnRight.disabled = (activeBtn !== btnRight);
+    btnMic.disabled = (activeBtn !== btnMic);
+  }
+</script>
+
+</body>
+</html>
