@@ -17,6 +17,7 @@
       color: #e0e6ed;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
@@ -307,7 +308,6 @@
       box-shadow: 0 0 10px rgba(0, 240, 255, 0.9);
     }
 
-    /* 修正3 & 4: 明るい水色に統一したログスケール目盛り */
     .log-ticks {
       position: relative;
       width: 100%;
@@ -319,7 +319,7 @@
       position: absolute;
       transform: translateX(-50%);
       font-size: 10px;
-      color: #00f0ff; /* 明るい水色に統一 */
+      color: #00f0ff;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -329,7 +329,7 @@
       content: '';
       width: 1px;
       height: 5px;
-      background: #00f0ff; /* ティック線も明るい水色に統一 */
+      background: #00f0ff;
       margin-bottom: 2px;
     }
 
@@ -349,7 +349,6 @@
       height: 140px;
     }
 
-    /* 修正5: f=... を前に配置し、カラーを明るい水色(#00f0ff)に変更 */
     .scope-info {
       position: absolute;
       top: 6px;
@@ -396,6 +395,14 @@
       background: #00f0ff22;
       color: #00f0ff;
     }
+
+    /* フッター スタイル */
+    footer {
+      margin-top: 16px;
+      font-size: 11px;
+      color: #627284;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -407,7 +414,6 @@
   <!-- 波形選択 & チャンネル選択 -->
   <div class="top-controls">
     <div class="waveform-selector">
-      <!-- 修正1: すべてぴったり1波長分のアイコン表示 -->
       <button class="wave-btn active" data-wave="sine" title="サイン波">
         <svg viewBox="0 0 24 24"><path d="M 3 12 C 7 3, 9 3, 12 12 C 15 21, 17 21, 21 12"/></svg>
       </button>
@@ -442,7 +448,6 @@
         <button class="arrow-btn" data-step="0.1" title="+0.1Hz"><svg viewBox="0 0 24 24"><path d="M12 7l-7 7h14z"/></svg></button>
       </div>
 
-      <!-- 修正2: 初期値 1000.0Hz -->
       <div class="freq-display-box">
         <span class="freq-label">周波数</span>
         <div class="freq-digits-container">
@@ -470,7 +475,6 @@
 
   <!-- スライダーエリア -->
   <div class="sliders-section">
-    <!-- 修正3 & 4: 数値表記指定 & 水色統一のログスケール目盛り -->
     <div class="slider-group">
       <div class="slider-title">周波数設定</div>
       <div class="slider-wrapper">
@@ -496,7 +500,6 @@
 
   <!-- オシロスコープ Canvas -->
   <div class="scope-container">
-    <!-- 修正5: f=... を前に配置しカラー変更 -->
     <div class="scope-info" id="scopeInfo">f = --Hz, T = 1/f = --ms</div>
     <canvas id="scopeCanvas"></canvas>
   </div>
@@ -521,7 +524,7 @@
   let mergerNode = null;
   let analyserNode = null;
 
-  // App State (修正2: 初期値 1000Hz)
+  // App State
   let isPlaying = false;
   let currentFreq = 1000;
   let currentWave = 'sine';
@@ -742,7 +745,6 @@
     canvasCtx.lineTo(width, height / 2);
     canvasCtx.stroke();
 
-    // 修正5: f=... を前に配置して更新
     const periodMs = (1 / currentFreq) * 1000;
     let pStr = periodMs < 1 ? `${(periodMs * 1000).toFixed(2)}µs` : `${periodMs.toFixed(2)}ms`;
     let fStr = currentFreq >= 1000 ? `${(currentFreq / 1000).toFixed(2)}kHz` : `${currentFreq.toFixed(1)}Hz`;
@@ -802,9 +804,15 @@
     }
   }
 
-  // 初期値設定 (修正2: 1000Hz)
+  // 初期値設定
   setFrequency(1000);
   drawScope();
 </script>
+
+<!-- 最下部クレジット表記 -->
+<footer>
+    Special thanks to 【phys_kenさん・シンプル低周波発振器】 for the inspiration.
+</footer>
+
 </body>
 </html>
