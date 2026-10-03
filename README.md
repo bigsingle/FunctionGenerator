@@ -1,1 +1,1 @@
-# TRRS_PinFinder
+# FunctionGenerator
